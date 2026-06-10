@@ -3,24 +3,47 @@ import type { NewBodyRecord } from "./storage";
 import { detectBrand, parseByBrand } from "./parsers";
 
 const OCR_PROMPT = `
-あなたは体組成計のディスプレイ写真を解析するアシスタントです。
-写真から以下の情報を読み取り、JSONで返してください。
-値が読み取れない場合は null にしてください。
+あなたは体組成計のレシート・ディスプレイ写真を解析するエキスパートです。
+写真に印刷/表示されている数値をすべて正確に読み取り、JSONで返してください。
+値が読み取れない・存在しない場合は null にしてください。
+
+【重要な注意】
+- 日時: レシートに印字されている日付と時刻を正確に読み取ってください。
+  AM/PM表記や24時間表記に注意し、午後の時刻（例: 8:46 PM → 20:46）を正しく変換してください。
+  日付が「2026/06/09」、時刻が「20:46」なら "2026-06-09T20:46:00" です。
+- 数値: 小数点以下も正確に読み取ってください。
 
 返すJSONのフォーマット:
 {
-  "measured_at": "YYYY-MM-DDTHH:mm:ss" (計測日時、不明な場合は今日の日付),
+  "measured_at": "YYYY-MM-DDTHH:mm:ss" (レシート上の計測日時。時刻を正確に),
   "brand": "体組成計のブランド名（例: TANITA, OMRON, INBODY など）",
   "model": "型番（読み取れる場合のみ）",
-  "weight_kg": 体重(kg) の数値,
-  "body_fat_pct": 体脂肪率(%) の数値,
-  "muscle_mass_kg": 筋肉量(kg) の数値,
-  "bmi": BMI の数値,
-  "basal_metabolic_rate_kcal": 基礎代謝(kcal) の整数,
-  "body_water_pct": 体水分率(%) の数値（あれば）,
-  "brand_data": { ブランド固有の追加データ（内臓脂肪レベルなど）}
+  "weight_kg": 体重(kg),
+  "body_fat_pct": 体脂肪率(%),
+  "muscle_mass_kg": 筋肉量(kg),
+  "bmi": BMI,
+  "basal_metabolic_rate_kcal": 基礎代謝(kcal),
+  "body_water_pct": 体水分率(%),
+  "brand_data": {
+    "visceral_fat_level": 内臓脂肪レベル（数値）,
+    "bone_mass_kg": 推定骨量(kg),
+    "metabolic_age": 体内年齢（歳）,
+    "physique_rating": 体型判定（数値 1-9）,
+    "subcutaneous_fat_pct": 皮下脂肪率(%),
+    "trunk_fat_pct": 体幹部脂肪率(%),
+    "arm_fat_pct": 腕部脂肪率(%),
+    "leg_fat_pct": 脚部脂肪率(%),
+    "trunk_muscle_kg": 体幹部筋肉量(kg),
+    "arm_muscle_kg": 腕部筋肉量(kg),
+    "leg_muscle_kg": 脚部筋肉量(kg),
+    "muscle_quality_score": 筋質点数,
+    "left_right_balance": 左右バランス,
+    ... その他レシートに記載されている項目すべて
+  }
 }
 
+brand_data にはレシートに記載されているすべての追加情報を含めてください。
+上記に列挙していない項目があっても、適切なキー名（snake_case英語）で追加してください。
 JSONのみを返してください。説明文は不要です。
 `.trim();
 
@@ -39,7 +62,7 @@ export async function extractBodyData(
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
 
   const result = await model.generateContent([
     OCR_PROMPT,

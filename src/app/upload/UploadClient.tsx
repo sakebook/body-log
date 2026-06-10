@@ -126,6 +126,15 @@ export function UploadClient() {
     }));
   }
 
+  function handleBrandDataChange(key: string, value: string) {
+    setFormData((prev) => {
+      const bd = { ...(prev.brand_data as Record<string, unknown> ?? {}) };
+      const num = parseFloat(value);
+      bd[key] = value === "" ? null : isNaN(num) ? value : num;
+      return { ...prev, brand_data: bd };
+    });
+  }
+
   const numFields = [
     { key: "weight_kg" as const,               label: "体重",       unit: "kg"   },
     { key: "body_fat_pct" as const,             label: "体脂肪率",   unit: "%"    },
@@ -134,6 +143,31 @@ export function UploadClient() {
     { key: "basal_metabolic_rate_kcal" as const, label: "基礎代謝",  unit: "kcal" },
     { key: "body_water_pct" as const,           label: "体水分率",   unit: "%"    },
   ];
+
+  const BRAND_DATA_LABELS: Record<string, string> = {
+    visceral_fat_level: "内臓脂肪レベル",
+    bone_mass_kg: "推定骨量 (kg)",
+    metabolic_age: "体内年齢 (歳)",
+    physique_rating: "体型判定",
+    subcutaneous_fat_pct: "皮下脂肪率 (%)",
+    trunk_fat_pct: "体幹部脂肪率 (%)",
+    arm_fat_pct: "腕部脂肪率 (%)",
+    leg_fat_pct: "脚部脂肪率 (%)",
+    trunk_muscle_kg: "体幹部筋肉量 (kg)",
+    arm_muscle_kg: "腕部筋肉量 (kg)",
+    leg_muscle_kg: "脚部筋肉量 (kg)",
+    muscle_quality_score: "筋質点数",
+    left_right_balance: "左右バランス",
+  };
+
+  function labelForBrandKey(key: string): string {
+    return BRAND_DATA_LABELS[key] ?? key.replace(/_/g, " ");
+  }
+
+  const brandData = (formData.brand_data ?? {}) as Record<string, unknown>;
+  const brandDataEntries = Object.entries(brandData).filter(
+    ([, v]) => v != null && v !== ""
+  );
 
   return (
     <>
@@ -311,6 +345,45 @@ export function UploadClient() {
                     </div>
                   ))}
                 </div>
+
+                {/* ブランド固有データ */}
+                {brandDataEntries.length > 0 && (
+                  <fieldset
+                    style={{
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "var(--radius-md)",
+                      padding: "1rem",
+                      marginBlockStart: "0.25rem",
+                    }}
+                  >
+                    <legend
+                      style={{
+                        fontSize: "0.875rem",
+                        fontWeight: 600,
+                        color: "var(--color-text-muted)",
+                        padding: "0 0.5rem",
+                      }}
+                    >
+                      詳細データ（{formData.brand ?? "ブランド"}固有）
+                    </legend>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                      {brandDataEntries.map(([key, val]) => (
+                        <div key={key} className="field">
+                          <label htmlFor={`bd-${key}`}>{labelForBrandKey(key)}</label>
+                          <input
+                            id={`bd-${key}`}
+                            type={typeof val === "number" ? "number" : "text"}
+                            step="0.1"
+                            className="input"
+                            value={val != null ? String(val) : ""}
+                            onChange={(e) => handleBrandDataChange(key, e.target.value)}
+                            inputMode={typeof val === "number" ? "decimal" : "text"}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </fieldset>
+                )}
 
                 {error && (
                   <p role="alert" style={{ color: "var(--color-danger-500)", fontSize: "0.875rem" }}>
