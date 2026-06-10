@@ -145,19 +145,66 @@ export function UploadClient() {
   ];
 
   const BRAND_DATA_LABELS: Record<string, string> = {
+    // 基本指標
     visceral_fat_level: "内臓脂肪レベル",
     bone_mass_kg: "推定骨量 (kg)",
     metabolic_age: "体内年齢 (歳)",
     physique_rating: "体型判定",
+    physique_rating_text: "体型判定",
+
+    // 体脂肪関連
+    fat_mass_kg: "脂肪量 (kg)",
+    fat_free_mass_kg: "除脂肪体重 (kg)",
     subcutaneous_fat_pct: "皮下脂肪率 (%)",
-    trunk_fat_pct: "体幹部脂肪率 (%)",
-    arm_fat_pct: "腕部脂肪率 (%)",
-    leg_fat_pct: "脚部脂肪率 (%)",
-    trunk_muscle_kg: "体幹部筋肉量 (kg)",
-    arm_muscle_kg: "腕部筋肉量 (kg)",
-    leg_muscle_kg: "脚部筋肉量 (kg)",
+    obesity_degree_pct: "肥満度 (%)",
+    body_fat_standard_range_pct_min: "体脂肪率 標準範囲下限 (%)",
+    body_fat_standard_range_pct_max: "体脂肪率 標準範囲上限 (%)",
+    body_fat_standard_range_kg_min: "体脂肪量 標準範囲下限 (kg)",
+    body_fat_standard_range_kg_max: "体脂肪量 標準範囲上限 (kg)",
+    body_fat_judgment: "体脂肪 判定",
+
+    // 筋肉・骨格
+    muscle_mass_pct: "筋肉率 (%)",
     muscle_quality_score: "筋質点数",
+    muscle_mass_judgment: "筋肉量 判定",
     left_right_balance: "左右バランス",
+
+    // 部位別脂肪
+    trunk_fat_pct: "体幹部 脂肪率 (%)",
+    arm_fat_pct: "腕部 脂肪率 (%)",
+    leg_fat_pct: "脚部 脂肪率 (%)",
+    left_arm_fat_pct: "左腕 脂肪率 (%)",
+    right_arm_fat_pct: "右腕 脂肪率 (%)",
+    left_leg_fat_pct: "左脚 脂肪率 (%)",
+    right_leg_fat_pct: "右脚 脂肪率 (%)",
+
+    // 部位別筋肉
+    trunk_muscle_kg: "体幹部 筋肉量 (kg)",
+    arm_muscle_kg: "腕部 筋肉量 (kg)",
+    leg_muscle_kg: "脚部 筋肉量 (kg)",
+    left_arm_muscle_kg: "左腕 筋肉量 (kg)",
+    right_arm_muscle_kg: "右腕 筋肉量 (kg)",
+    left_leg_muscle_kg: "左脚 筋肉量 (kg)",
+    right_leg_muscle_kg: "右脚 筋肉量 (kg)",
+
+    // 水分
+    body_water_mass_kg: "体水分量 (kg)",
+
+    // 判定系
+    bmi_judgment: "BMI 判定",
+    visceral_fat_judgment: "内臓脂肪 判定",
+    basal_metabolic_rate_judgment: "基礎代謝 判定",
+    basal_metabolic_level_judgment: "基礎代謝 判定",
+
+    // その他
+    standard_weight_kg: "標準体重 (kg)",
+    clothing_weight_kg: "着衣重量 (kg)",
+
+    // インピーダンス
+    "impedance_6_25khz_r": "インピーダンス 6.25kHz R",
+    "impedance_6_25khz_x": "インピーダンス 6.25kHz X",
+    "impedance_50khz_r": "インピーダンス 50kHz R",
+    "impedance_50khz_x": "インピーダンス 50kHz X",
   };
 
   function labelForBrandKey(key: string): string {

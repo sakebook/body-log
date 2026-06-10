@@ -75,8 +75,14 @@ function toStr(v: unknown): string | null {
 
 function toIso(v: string | undefined): string {
   if (!v) return new Date().toISOString();
-  // "YYYY/MM/DD HH:mm" → ISO変換
+  // "YYYY/MM/DD HH:mm" → "YYYY-MM-DDTHH:mm" に正規化
   const normalized = v.replace(/\//g, "-").replace(" ", "T");
-  const d = new Date(normalized);
+
+  // タイムゾーン情報がない場合、日本時間（+09:00）として扱う
+  // OCRが読み取るレシートの時刻は日本のローカル時刻のため
+  const hasTimezone = /[Zz]|[+-]\d{2}:\d{2}$/.test(normalized);
+  const withTz = hasTimezone ? normalized : `${normalized}+09:00`;
+
+  const d = new Date(withTz);
   return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
 }
