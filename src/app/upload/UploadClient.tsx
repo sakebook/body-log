@@ -7,6 +7,22 @@ import type { NewBodyRecord } from "@/lib/storage";
 
 type Step = "upload" | "confirm" | "done";
 
+/**
+ * ISO UTC 文字列をブラウザのローカル時間で YYYY-MM-DDTHH:mm 形式に変換する。
+ * datetime-local input の value に使用。
+ */
+function toLocalDatetimeStr(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  // ローカルの年月日時分を0埋めして結合
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, "0");
+  const da = String(d.getDate()).padStart(2, "0");
+  const h = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${y}-${mo}-${da}T${h}:${mi}`;
+}
+
 interface OcrResult {
   record: Partial<Omit<NewBodyRecord, "image_url" | "raw_ocr_text">>;
   rawText: string;
@@ -355,10 +371,18 @@ export function UploadClient() {
                     type="datetime-local"
                     className="input"
                     value={formData.measured_at
-                      ? new Date(formData.measured_at).toISOString().slice(0, 16)
+                      ? toLocalDatetimeStr(formData.measured_at)
                       : ""}
-                    onChange={(e) => handleFieldChange("measured_at", e.target.value
-                      ? new Date(e.target.value).toISOString() : "")}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        // datetime-local はブラウザのローカル時間で入力される
+                        // new Date() がローカルTZとして解釈 → toISOString() でUTCに
+                        const d = new Date(e.target.value);
+                        handleFieldChange("measured_at", d.toISOString());
+                      } else {
+                        handleFieldChange("measured_at", "");
+                      }
+                    }}
                   />
                 </div>
 
