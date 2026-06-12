@@ -9,7 +9,7 @@
 - **🔬 詳細データ対応** — 内臓脂肪レベル、体内年齢、部位別データなどブランド固有の項目も記録
 - **📱 モバイルフレンドリー** — スマホから直接撮影→記録が可能
 - **🌙 ダークモード対応** — システム設定に自動追従
-- **🔒 パスワード認証** — シンプルなパスワードで個人データを保護
+- **🔒 安全な認証 (Supabase Auth)** — メール＆パスワードによる堅牢な認証で個人データを保護
 
 ## 🏗️ アーキテクチャ
 
@@ -88,13 +88,15 @@ supabase/
 - [Supabase](https://supabase.com) アカウント
 - [Google AI Studio](https://aistudio.google.com) アカウント（Gemini API キー）
 
-### 1. Supabase プロジェクト作成
+### 1. Supabase プロジェクト作成 & 認証設定
 
 1. [supabase.com](https://supabase.com) で新しいプロジェクトを作成
 2. **SQL Editor** で [`supabase/schema.sql`](supabase/schema.sql) の内容を貼り付けて実行
 3. **Settings > API Keys** >「Publishable and secret API keys」タブから以下を控える:
    - **Project URL** （`https://xxxx.supabase.co`）
    - **Secret** キー（`sb_secret_...` で始まるもの）
+4. **Authentication > Users** 画面を開き、**Add user** > **Create user** からログイン用のアカウント（Email と Password）を作成します。
+   - ※ ローカル開発や個人利用の場合、**Auto-confirm user?**（メール確認のスキップ）にチェックを入れて作成することをお勧めします。
 
 > ⚠️ Legacy タブの `service_role` ではなく、新しい「Secret」キーを使用してください。
 
@@ -127,7 +129,6 @@ SUPABASE_SERVICE_ROLE_KEY=sb_secret_xxxx
 GEMINI_API_KEY=AIza...
 
 # 認証
-APP_PASSWORD=your-strong-password
 NEXTAUTH_SECRET=your-random-secret   # openssl rand -base64 32 で生成
 ```
 
@@ -136,7 +137,7 @@ NEXTAUTH_SECRET=your-random-secret   # openssl rand -base64 32 で生成
 npm run dev
 ```
 
-ブラウザで [http://localhost:3000](http://localhost:3000) を開き、`APP_PASSWORD` に設定したパスワードでログインします。
+ブラウザで [http://localhost:3000](http://localhost:3000) を開き、Supabase のダッシュボードで作成した管理者のメールアドレスとパスワードでログインします。
 
 ### 4. Vercel デプロイ
 
@@ -153,7 +154,6 @@ npm run dev
 | `SUPABASE_URL` | ✅ | Supabase プロジェクト URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Supabase Secret キー（RLS バイパス、サーバー専用） |
 | `GEMINI_API_KEY` | ✅ | Google AI Studio の API キー |
-| `APP_PASSWORD` | ✅ | ログインパスワード |
 | `NEXTAUTH_SECRET` | ✅ | JWT 署名用シークレット（`openssl rand -base64 32` で生成） |
 | `NEXTAUTH_URL` | — | アプリの URL（Vercel では自動設定、ローカルでは不要） |
 
@@ -189,7 +189,7 @@ npm run dev
 
 ## 📝 既知の制限事項
 
-- **認証**: パスワードは平文比較（将来的に bcrypt ハッシュ化 or OAuth への移行を検討）
+- **認証**: Supabase Auth による管理者のメール・パスワード認証を採用（ブルートフォースや不正アクセスを防ぐ強固な仕組みを標準で備えています）
 - **OCR 精度**: レシートの印刷品質や撮影角度により読み取り精度が変わる場合があります。確認画面で手動修正が可能です
 - **タイムゾーン**: OCR で読み取った時刻は日本時間（JST）として処理されます
 

@@ -49,19 +49,19 @@ export default function LoginPage() {
             ログイン
           </h1>
           <LoginForm />
+          <p
+            style={{
+              textAlign: "center",
+              marginBlockStart: "1.25rem",
+              fontSize: "0.75rem",
+              color: "var(--color-text-muted)",
+              lineHeight: 1.5,
+            }}
+          >
+            ※ パスワードを忘れた場合は、Supabase ダッシュボードの <br />
+            <strong>Authentication &gt; Users</strong> から再設定（Change password）を行ってください。
+          </p>
         </div>
-
-        <p
-          style={{
-            textAlign: "center",
-            marginBlockStart: "1.5rem",
-            fontSize: "0.8125rem",
-            color: "var(--color-text-muted)",
-          }}
-        >
-          シングルユーザーアプリです。<br />
-          .env で設定した APP_PASSWORD を入力してください。
-        </p>
       </div>
     </div>
   );

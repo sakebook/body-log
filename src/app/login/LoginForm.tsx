@@ -5,10 +5,12 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 export function LoginForm() {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const emailId = useId();
   const passwordId = useId();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -17,6 +19,7 @@ export function LoginForm() {
     setError("");
 
     const result = await signIn("credentials", {
+      email,
       password,
       redirect: false,
     });
@@ -24,7 +27,7 @@ export function LoginForm() {
     setLoading(false);
 
     if (result?.error) {
-      setError("パスワードが正しくありません");
+      setError("メールアドレスまたはパスワードが正しくありません");
     } else {
       router.push("/");
       router.refresh();
@@ -33,6 +36,22 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+      <div className="field">
+        <label htmlFor={emailId}>メールアドレス</label>
+        <input
+          id={emailId}
+          type="email"
+          className="input"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="your@email.com"
+          required
+          autoComplete="email"
+          autoFocus
+          aria-describedby={error ? "login-error" : undefined}
+        />
+      </div>
+
       <div className="field">
         <label htmlFor={passwordId}>パスワード</label>
         <input
@@ -44,7 +63,6 @@ export function LoginForm() {
           placeholder="••••••••"
           required
           autoComplete="current-password"
-          autoFocus
           aria-describedby={error ? "login-error" : undefined}
         />
       </div>
@@ -68,7 +86,7 @@ export function LoginForm() {
       <button
         type="submit"
         className="btn btn-primary"
-        disabled={loading || !password}
+        disabled={loading || !email || !password}
         style={{ inlineSize: "100%" }}
       >
         {loading ? (

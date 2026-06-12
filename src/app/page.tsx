@@ -32,10 +32,10 @@ export default async function DashboardPage() {
     );
   }
 
+  let records;
   try {
     const storage = getStorage();
-    const records = await storage.getRecords({ limit: 90 });
-    return <DashboardClient records={records} />;
+    records = await storage.getRecords({ limit: 90 });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return (
@@ -44,4 +44,6 @@ export default async function DashboardPage() {
       </div>
     );
   }
+
+  return <DashboardClient records={records} />;
 }
