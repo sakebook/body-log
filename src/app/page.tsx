@@ -14,28 +14,10 @@ export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
-  // Supabase 未設定チェック
-  const supabaseUrl = process.env.SUPABASE_URL ?? "";
-  const supabaseKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? "";
-
-  const isSupabaseConfigured =
-    supabaseUrl.startsWith("https://") &&
-    !supabaseUrl.includes("your-project") &&
-    supabaseKey.length > 20;
-
-  if (!isSupabaseConfigured) {
-    return (
-      <div className="container" style={{ paddingBlock: "2rem" }}>
-        <SetupGuide />
-      </div>
-    );
-  }
-
+  let records;
   try {
     const storage = getStorage();
-    const records = await storage.getRecords({ limit: 90 });
-    return <DashboardClient records={records} />;
+    records = await storage.getRecords({ limit: 90 });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return (
@@ -44,4 +26,6 @@ export default async function DashboardPage() {
       </div>
     );
   }
+
+  return <DashboardClient records={records} />;
 }
