@@ -52,6 +52,9 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        // Supabaseサーバー側に作成された不要なセッションレコードを即座に破棄
+        await supabase.auth.signOut();
+
         return {
           id: data.user.id,
           name: "Owner",
