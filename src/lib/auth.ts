@@ -1,6 +1,29 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+
+let supabaseClient: SupabaseClient | null = null;
+
+function getSupabaseClient() {
+  if (supabaseClient) return supabaseClient;
+
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !key) {
+    throw new Error("SUPABASE_URL または SUPABASE_SERVICE_ROLE_KEY が設定されていません");
+  }
+
+  supabaseClient = createClient(url, key, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+
+  return supabaseClient;
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -11,13 +34,6 @@ export const authOptions: NextAuthOptions = {
         password: { label: "パスワード", type: "password" },
       },
       async authorize(credentials) {
-        const url = process.env.SUPABASE_URL;
-        const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-        if (!url || !key) {
-          throw new Error("SUPABASE_URL または SUPABASE_SERVICE_ROLE_KEY が設定されていません");
-        }
-
         const email = credentials?.email;
         const password = credentials?.password;
 
@@ -25,13 +41,7 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const supabase = createClient(url, key, {
-          auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-            detectSessionInUrl: false,
-          },
-        });
+        const supabase = getSupabaseClient();
 
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
