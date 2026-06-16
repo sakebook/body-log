@@ -34,17 +34,10 @@ export function compressImage(file: File, options: CompressOptions = {}): Promis
           const maxW = maxWidth ?? width;
           const maxH = maxHeight ?? height;
 
-          if (width > height) {
-            if (width > maxW) {
-              height = Math.round((height * maxW) / width);
-              width = maxW;
-            }
-          } else {
-            if (height > maxH) {
-              width = Math.round((width * maxH) / height);
-              height = maxH;
-            }
-          }
+          // 縦横両方の縮小率のうち、より厳しい（小さい）方を採用
+          const scale = Math.min(maxW / width, maxH / height, 1);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
         }
 
         canvas.width = width;
@@ -66,7 +59,9 @@ export function compressImage(file: File, options: CompressOptions = {}): Promis
               return;
             }
             const ext = format === "image/webp" ? "webp" : "jpg";
-            const newName = file.name.substring(0, file.name.lastIndexOf(".")) + "." + ext;
+            const dotIdx = file.name.lastIndexOf(".");
+            const baseName = dotIdx === -1 ? file.name : file.name.substring(0, dotIdx);
+            const newName = `${baseName}.${ext}`;
 
             const compressedFile = new File([blob], newName, {
               type: format,

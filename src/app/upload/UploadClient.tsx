@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useId, useRef } from "react";
+import { useState, useCallback, useId, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import type { NewBodyRecord } from "@/lib/storage";
@@ -44,12 +44,21 @@ export function UploadClient() {
   const fileInputId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // --- メモリリーク対策: プレビューURL更新時・アンマウント時に古い Object URL を解放 ---
+  useEffect(() => {
+    return () => {
+      if (preview) {
+        URL.revokeObjectURL(preview);
+      }
+    };
+  }, [preview]);
+
   function showToast(msg: string, type: "success" | "error") {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
   }
 
-  async function handleFileSelect(selected: File) {
+  const handleFileSelect = useCallback(async (selected: File) => {
     if (!selected.type.startsWith("image/")) {
       setError("画像ファイルを選択してください");
       return;
@@ -74,10 +83,12 @@ export function UploadClient() {
       setFile(selected);
       setPreview(URL.createObjectURL(selected));
     }
-  }
+  }, [setError, setFile, setPreview]);
 
-  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (e.target.files?.[0]) handleFileSelect(e.target.files[0]);
+  async function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files?.[0]) {
+      await handleFileSelect(e.target.files[0]);
+    }
   }
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -87,12 +98,13 @@ export function UploadClient() {
 
   const handleDragLeave = useCallback(() => setDragging(false), []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
-    if (e.dataTransfer.files[0]) handleFileSelect(e.dataTransfer.files[0]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (e.dataTransfer.files[0]) {
+      await handleFileSelect(e.dataTransfer.files[0]);
+    }
+  }, [handleFileSelect]);
 
   async function handleOcr() {
     if (!file) return;
