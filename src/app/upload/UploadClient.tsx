@@ -4,6 +4,7 @@ import { useState, useCallback, useId, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import type { NewBodyRecord } from "@/lib/storage";
+import { compressImage } from "@/lib/image";
 
 type Step = "upload" | "confirm" | "done";
 
@@ -48,18 +49,31 @@ export function UploadClient() {
     setTimeout(() => setToast(null), 3500);
   }
 
-  function handleFileSelect(selected: File) {
+  async function handleFileSelect(selected: File) {
     if (!selected.type.startsWith("image/")) {
       setError("画像ファイルを選択してください");
       return;
     }
-    if (selected.size > 10 * 1024 * 1024) {
-      setError("ファイルサイズは10MB以下にしてください");
+    // 圧縮前のため、少し余裕を持って 20MB 以下に制限を緩和します
+    if (selected.size > 20 * 1024 * 1024) {
+      setError("ファイルサイズは20MB以下にしてください");
       return;
     }
     setError(null);
-    setFile(selected);
-    setPreview(URL.createObjectURL(selected));
+
+    try {
+      // WebP（リサイズなし、画質80%）に自動圧縮
+      const compressed = await compressImage(selected, {
+        quality: 0.80,
+        format: "image/webp",
+      });
+      setFile(compressed);
+      setPreview(URL.createObjectURL(compressed));
+    } catch (err) {
+      console.error("画像圧縮に失敗したため、オリジナルファイルを使用します:", err);
+      setFile(selected);
+      setPreview(URL.createObjectURL(selected));
+    }
   }
 
   function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
