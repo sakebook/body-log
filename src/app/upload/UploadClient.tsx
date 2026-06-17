@@ -44,14 +44,21 @@ export function UploadClient() {
   const fileInputId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // --- メモリリーク対策: プレビューURL更新時・アンマウント時に古い Object URL を解放 ---
+  // レースコンディション対策用と Strict Mode クリーンアップ用の参照
+  const activeSelectIdRef = useRef<number>(0);
+  const previewRef = useRef<string | null>(null);
+
+  // 最新の preview 状態を ref に同期
+  previewRef.current = preview;
+
+  // --- Strict Mode 対策: コンポーネントが完全にアンマウントされた時のみ最終クリーンアップ ---
   useEffect(() => {
     return () => {
-      if (preview) {
-        URL.revokeObjectURL(preview);
+      if (previewRef.current) {
+        URL.revokeObjectURL(previewRef.current);
       }
     };
-  }, [preview]);
+  }, []);
 
   function showToast(msg: string, type: "success" | "error") {
     setToast({ msg, type });
@@ -63,12 +70,15 @@ export function UploadClient() {
       setError("画像ファイルを選択してください");
       return;
     }
-    // 圧縮前のため、少し余裕を持って 20MB 以下に制限を緩和します
+    // 圧縮前は 20MB を上限として受付
     if (selected.size > 20 * 1024 * 1024) {
       setError("ファイルサイズは20MB以下にしてください");
       return;
     }
     setError(null);
+
+    // レースコンディション対策: 選択IDの発行
+    const selectId = ++activeSelectIdRef.current;
 
     try {
       // WebP（リサイズなし、画質80%）に自動圧縮
@@ -76,12 +86,43 @@ export function UploadClient() {
         quality: 0.80,
         format: "image/webp",
       });
+
+      // 後発の選択処理が走っている場合は、この古い処理結果を無視して破棄
+      if (selectId !== activeSelectIdRef.current) {
+        return;
+      }
+
+      // 最終ファイルサイズの10MB検証 (サーバー側の10MB制限との整合)
+      if (compressed.size > 10 * 1024 * 1024) {
+        setError("圧縮後のファイルサイズが10MBを超えています。別の画像を選択してください。");
+        return;
+      }
+
       setFile(compressed);
-      setPreview(URL.createObjectURL(compressed));
+      
+      // 新しいプレビューをセットしつつ、古いプレビューを明示的に即時解放
+      setPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(compressed);
+      });
     } catch (err) {
       console.error("画像圧縮に失敗したため、オリジナルファイルを使用します:", err);
+      
+      if (selectId !== activeSelectIdRef.current) {
+        return;
+      }
+
+      // フォールバック時も、最終的な送信ファイルサイズが10MB以下かチェック
+      if (selected.size > 10 * 1024 * 1024) {
+        setError("画像圧縮に失敗しました。また、オリジナルのファイルサイズが10MBを超えているためアップロードできません。");
+        return;
+      }
+
       setFile(selected);
-      setPreview(URL.createObjectURL(selected));
+      setPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(selected);
+      });
     }
   }, [setError, setFile, setPreview]);
 

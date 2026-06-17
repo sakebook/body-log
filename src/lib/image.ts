@@ -19,11 +19,10 @@ export function compressImage(file: File, options: CompressOptions = {}): Promis
     }
 
     const reader = new FileReader();
-    reader.readAsDataURL(file);
+    // 防御的コーディング: ハンドラを先に設定
     reader.onload = (event) => {
       const img = new Image();
-      img.src = event.target?.result as string;
-
+      // 防御的コーディング: ハンドラを先に設定
       img.onload = () => {
         const canvas = document.createElement("canvas");
         let width = img.width;
@@ -58,13 +57,15 @@ export function compressImage(file: File, options: CompressOptions = {}): Promis
               reject(new Error("Image compression failed"));
               return;
             }
-            const ext = format === "image/webp" ? "webp" : "jpg";
+            // 実際の blob.type を基に拡張子と MIME タイプを確定（WebP 非対応ブラウザでの不整合回避）
+            const actualFormat = blob.type;
+            const ext = actualFormat === "image/webp" ? "webp" : actualFormat === "image/png" ? "png" : "jpg";
             const dotIdx = file.name.lastIndexOf(".");
             const baseName = dotIdx === -1 ? file.name : file.name.substring(0, dotIdx);
             const newName = `${baseName}.${ext}`;
 
             const compressedFile = new File([blob], newName, {
-              type: format,
+              type: actualFormat,
               lastModified: Date.now(),
             });
             resolve(compressedFile);
@@ -75,8 +76,10 @@ export function compressImage(file: File, options: CompressOptions = {}): Promis
       };
 
       img.onerror = () => reject(new Error("Failed to load image element"));
+      img.src = event.target?.result as string; // 読み込み開始
     };
 
     reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file); // 読み込み開始
   });
 }
