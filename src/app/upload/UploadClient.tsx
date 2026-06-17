@@ -66,19 +66,29 @@ export function UploadClient() {
   }
 
   const handleFileSelect = useCallback(async (selected: File) => {
+    // 1. 先頭で即座に ID をインクリメントし、仕掛かり中の前処理を無効化
+    const selectId = ++activeSelectIdRef.current;
+
+    // 2. エラー時は file/preview をクリアし、古い preview URL を明示的に破棄
     if (!selected.type.startsWith("image/")) {
       setError("画像ファイルを選択してください");
+      setFile(null);
+      setPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
       return;
     }
-    // 圧縮前は 20MB を上限として受付
     if (selected.size > 20 * 1024 * 1024) {
       setError("ファイルサイズは20MB以下にしてください");
+      setFile(null);
+      setPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
       return;
     }
     setError(null);
-
-    // レースコンディション対策: 選択IDの発行
-    const selectId = ++activeSelectIdRef.current;
 
     try {
       // WebP（リサイズなし、画質80%）に自動圧縮
@@ -95,16 +105,22 @@ export function UploadClient() {
       // 最終ファイルサイズの10MB検証 (サーバー側の10MB制限との整合)
       if (compressed.size > 10 * 1024 * 1024) {
         setError("圧縮後のファイルサイズが10MBを超えています。別の画像を選択してください。");
+        setFile(null);
+        setPreview((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return null;
+        });
         return;
       }
 
       setFile(compressed);
       
-      // 新しいプレビューをセットしつつ、古いプレビューを明示的に即時解放
-      setPreview((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return URL.createObjectURL(compressed);
-      });
+      // 3. 副作用を状態更新の「外側」で処理 (Strict Mode でのメモリリークを完全に防止)
+      const newUrl = URL.createObjectURL(compressed);
+      if (preview) {
+        URL.revokeObjectURL(preview);
+      }
+      setPreview(newUrl);
     } catch (err) {
       console.error("画像圧縮に失敗したため、オリジナルファイルを使用します:", err);
       
@@ -115,16 +131,23 @@ export function UploadClient() {
       // フォールバック時も、最終的な送信ファイルサイズが10MB以下かチェック
       if (selected.size > 10 * 1024 * 1024) {
         setError("画像圧縮に失敗しました。また、オリジナルのファイルサイズが10MBを超えているためアップロードできません。");
+        setFile(null);
+        setPreview((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return null;
+        });
         return;
       }
 
       setFile(selected);
-      setPreview((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return URL.createObjectURL(selected);
-      });
+      
+      const newUrl = URL.createObjectURL(selected);
+      if (preview) {
+        URL.revokeObjectURL(preview);
+      }
+      setPreview(newUrl);
     }
-  }, [setError, setFile, setPreview]);
+  }, [setError, setFile, setPreview, preview]);
 
   async function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (e.target.files?.[0]) {
@@ -572,7 +595,10 @@ export function UploadClient() {
               onClick={() => {
                 setStep("upload");
                 setFile(null);
-                setPreview(null);
+                setPreview((prev) => {
+                  if (prev) URL.revokeObjectURL(prev);
+                  return null;
+                });
                 setOcrResult(null);
                 setFormData({});
               }}
