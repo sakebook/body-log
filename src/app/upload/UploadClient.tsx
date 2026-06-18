@@ -89,6 +89,7 @@ export function UploadClient() {
   const handleFileSelect = useCallback(async (selected: File) => {
     // 1. 先頭で即座に ID をインクリメントし、仕掛かり中の前処理を無効化
     const selectId = ++activeSelectIdRef.current;
+    setIsCompressing(false);
 
     // 2. previewRef を使って Object URL を安全に解放するヘルパー
     const revokeOldPreview = () => {
@@ -434,7 +435,7 @@ export function UploadClient() {
             </p>
           )}
 
-          {file && (
+          {(file || isCompressing) && (
             <button
               type="button"
               className="btn btn-primary btn-lg"
