@@ -70,6 +70,8 @@ export function compressImage(file: File, options: CompressOptions = {}): Promis
           const actualFormat = blob.type;
 
           // WebP非対応ブラウザで PNG(可逆) にフォールバックされサイズ肥大化の可能性がある場合、JPEG(非可逆)で再エンコード
+          // ※HTML5 Canvas仕様上、ブラウザがサポートしない形式（WebP等）が指定された場合、
+          //   デフォルトで image/png が返される挙動（フォールバック）を想定しています。
           if (format === "image/webp" && actualFormat === "image/png") {
             canvas.toBlob(
               (jpegBlob) => {
