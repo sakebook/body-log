@@ -59,6 +59,8 @@ export function compressImage(file: File, options: CompressOptions = {}): Promis
       canvas.toBlob(
         (blob) => {
           if (!blob) {
+            canvas.width = 0;
+            canvas.height = 0;
             reject(new Error("Image compression failed"));
             return;
           }
@@ -70,6 +72,8 @@ export function compressImage(file: File, options: CompressOptions = {}): Promis
             canvas.toBlob(
               (jpegBlob) => {
                 if (!jpegBlob) {
+                  canvas.width = 0;
+                  canvas.height = 0;
                   reject(new Error("JPEG fallback compression failed"));
                   return;
                 }
