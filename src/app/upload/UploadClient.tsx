@@ -79,8 +79,9 @@ export function UploadClient() {
     };
 
     // エラー時は file/preview をクリアし、古い preview URL を明示的に破棄
-    if (!selected.type.startsWith("image/")) {
-      setError("画像ファイルを選択してください");
+    const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
+    if (!ALLOWED_TYPES.includes(selected.type)) {
+      setError("対応していないファイル形式です（JPEG・PNG・WebP・HEICのみ）");
       setFile(null);
       revokeOldPreview();
       setPreview(null);
