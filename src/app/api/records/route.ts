@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     if (imageFile && imageFile.size > 0) {
       const MAX_SIZE = 10 * 1024 * 1024; // 10MB制限
       if (imageFile.size > MAX_SIZE) {
-        return NextResponse.json({ error: "ファイルサイズは10MB以下にしてください" }, { status: 400 });
+        return NextResponse.json({ error: "アップロードできる画像サイズは圧縮後10MBまでです" }, { status: 400 });
       }
       imageUrl = await storage.saveImage(imageFile, imageFile.name || "image.jpg");
     }

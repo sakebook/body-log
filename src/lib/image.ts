@@ -81,6 +81,9 @@ export function compressImage(file: File, options: CompressOptions = {}): Promis
                   type: "image/jpeg",
                   lastModified: Date.now(),
                 });
+                // Canvas ピクセルバッファを即時解放（2回目のエンコード完了後）
+                canvas.width = 0;
+                canvas.height = 0;
                 resolve(compressedFile);
               },
               "image/jpeg",
@@ -98,6 +101,9 @@ export function compressImage(file: File, options: CompressOptions = {}): Promis
             type: actualFormat,
             lastModified: Date.now(),
           });
+          // Canvas ピクセルバッファを即時解放
+          canvas.width = 0;
+          canvas.height = 0;
           resolve(compressedFile);
         },
         format,
