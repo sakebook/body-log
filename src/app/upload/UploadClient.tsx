@@ -131,7 +131,12 @@ export function UploadClient() {
 
       // フォールバック時も、最終的な送信ファイルサイズが10MB以下かチェック
       if (selected.size > 10 * 1024 * 1024) {
-        setError("画像圧縮に失敗しました。また、オリジナルのファイルサイズが10MBを超えているためアップロードできません。");
+        const isHeic = selected.type === "image/heic" || selected.type === "image/heif";
+        setError(
+          isHeic
+            ? "HEICファイルはお使いのブラウザでは圧縮できません。JPEGまたはPNGに変換してからアップロードしてください。"
+            : "画像圧縮に失敗しました。また、オリジナルのファイルサイズが10MBを超えているためアップロードできません。"
+        );
         setFile(null);
         revokeOldPreview();
         setPreview(null);
@@ -348,7 +353,7 @@ export function UploadClient() {
               ref={fileInputRef}
               id={fileInputId}
               type="file"
-              accept="image/*"
+              accept=".jpg,.jpeg,.png,.webp,.heic,.heif"
               capture="environment"
               onChange={handleInputChange}
               className="visually-hidden"
