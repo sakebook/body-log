@@ -49,6 +49,8 @@ export function compressImage(file: File, options: CompressOptions = {}): Promis
 
       const ctx = canvas.getContext("2d");
       if (!ctx) {
+        canvas.width = 0;
+        canvas.height = 0;
         reject(new Error("Canvas context could not be created"));
         return;
       }
