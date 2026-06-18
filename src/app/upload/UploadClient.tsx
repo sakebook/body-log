@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useCallback, useId, useRef } from "react";
+import { useState, useCallback, useId, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import type { NewBodyRecord } from "@/lib/storage";
+import { compressImage } from "@/lib/image";
 
 type Step = "upload" | "confirm" | "done";
 
@@ -28,6 +29,24 @@ interface OcrResult {
   rawText: string;
 }
 
+/**
+ * Windows 等で file.type が空になる場合に備え、
+ * ファイル名の拡張子から MIME タイプを補完する。
+ */
+function getEffectiveType(file: File): string {
+  if (file.type) return file.type;
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const extMap: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+    heic: "image/heic",
+    heif: "image/heif",
+  };
+  return extMap[ext] ?? "";
+}
+
 export function UploadClient() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("upload");
@@ -40,30 +59,140 @@ export function UploadClient() {
   const [formData, setFormData] = useState<Partial<NewBodyRecord>>({});
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
   const fileInputId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // レースコンディション対策用と Strict Mode クリーンアップ用の参照
+  const activeSelectIdRef = useRef<number>(0);
+  const previewRef = useRef<string | null>(null);
+
+  // ESLint対策: レンダー中ではなく、useEffect を使用して安全に同期
+  useEffect(() => {
+    previewRef.current = preview;
+  }, [preview]);
+
+  // --- Strict Mode 対策: コンポーネントが完全にアンマウントされた時のみ最終クリーンアップ ---
+  useEffect(() => {
+    return () => {
+      if (previewRef.current) {
+        URL.revokeObjectURL(previewRef.current);
+      }
+    };
+  }, []);
 
   function showToast(msg: string, type: "success" | "error") {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
   }
 
-  function handleFileSelect(selected: File) {
-    if (!selected.type.startsWith("image/")) {
-      setError("画像ファイルを選択してください");
+  const handleFileSelect = useCallback(async (selected: File) => {
+    // 1. 先頭で即座に ID をインクリメントし、仕掛かり中の前処理を無効化
+    const selectId = ++activeSelectIdRef.current;
+    setIsCompressing(false);
+
+    // 2. previewRef を使って Object URL を安全に解放するヘルパー
+    const revokeOldPreview = () => {
+      if (previewRef.current) {
+        URL.revokeObjectURL(previewRef.current);
+      }
+    };
+
+    // エラー時は file/preview をクリアし、古い preview URL を明示的に破棄
+    const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
+    const effectiveType = getEffectiveType(selected);
+    if (!ALLOWED_TYPES.includes(effectiveType)) {
+      setError("対応していないファイル形式です（JPEG・PNG・WebP・HEICのみ）");
+      setFile(null);
+      revokeOldPreview();
+      setPreview(null);
       return;
     }
-    if (selected.size > 10 * 1024 * 1024) {
-      setError("ファイルサイズは10MB以下にしてください");
+    if (selected.size > 20 * 1024 * 1024) {
+      setError("ファイルサイズは20MB以下にしてください");
+      setFile(null);
+      revokeOldPreview();
+      setPreview(null);
       return;
     }
     setError(null);
-    setFile(selected);
-    setPreview(URL.createObjectURL(selected));
-  }
+    setIsCompressing(true);
 
-  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (e.target.files?.[0]) handleFileSelect(e.target.files[0]);
+    // file.type が空（Windows HEIC 等）の場合、compressImage とサーバーが正しく処理できるよう
+    // effectiveType で正規化した File オブジェクトを生成する
+    const fileToProcess =
+      effectiveType !== selected.type
+        ? new File([selected], selected.name, {
+            type: effectiveType,
+            lastModified: selected.lastModified,
+          })
+        : selected;
+
+    try {
+      // WebP（リサイズなし: 最大4096pxの安全制限あり、画質80%）に自動圧縮
+      const compressed = await compressImage(fileToProcess, {
+        quality: 0.80,
+        format: "image/webp",
+      });
+
+      // 後発の選択処理が走っている場合は、この古い処理結果を無視して破棄
+      if (selectId !== activeSelectIdRef.current) {
+        return;
+      }
+
+      setIsCompressing(false);
+
+      // 最終ファイルサイズの10MB検証 (サーバー側の10MB制限との整合)
+      if (compressed.size > 10 * 1024 * 1024) {
+        setError("圧縮後のファイルサイズが10MBを超えています。別の画像を選択してください。");
+        setFile(null);
+        revokeOldPreview();
+        setPreview(null);
+        return;
+      }
+
+      setFile(compressed);
+      
+      const newUrl = URL.createObjectURL(compressed);
+      revokeOldPreview(); // previewRef.current に基づく安全な破棄
+      setPreview(newUrl);
+    } catch (err) {
+      console.error("画像圧縮に失敗したため、オリジナルファイルを使用します:", err);
+
+      if (selectId !== activeSelectIdRef.current) {
+        return;
+      }
+
+      setIsCompressing(false);
+
+      // フォールバック時も、最終的な送信ファイルサイズが10MB以下かチェック
+      // isHeic 判定は正規化済みの effectiveType を使用する
+      if (fileToProcess.size > 10 * 1024 * 1024) {
+        const isHeic = effectiveType === "image/heic" || effectiveType === "image/heif";
+        setError(
+          isHeic
+            ? "HEICファイルはお使いのブラウザでは圧縮できません。JPEGまたはPNGに変換してからアップロードしてください。"
+            : "画像圧縮に失敗しました。また、オリジナルのファイルサイズが10MBを超えているためアップロードできません。"
+        );
+        setFile(null);
+        revokeOldPreview();
+        setPreview(null);
+        return;
+      }
+
+      // 正規化済み File をフォールバックとして使用（file.type が空のまま送信されるのを防ぐ）
+      setFile(fileToProcess);
+
+      const newUrl = URL.createObjectURL(fileToProcess);
+      revokeOldPreview();
+      setPreview(newUrl);
+    }
+  }, [setError, setFile, setPreview]);
+
+  async function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files?.[0]) {
+      await handleFileSelect(e.target.files[0]);
+    }
   }
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -73,12 +202,13 @@ export function UploadClient() {
 
   const handleDragLeave = useCallback(() => setDragging(false), []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
-    if (e.dataTransfer.files[0]) handleFileSelect(e.dataTransfer.files[0]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (e.dataTransfer.files[0]) {
+      await handleFileSelect(e.dataTransfer.files[0]);
+    }
+  }, [handleFileSelect]);
 
   async function handleOcr() {
     if (!file) return;
@@ -261,7 +391,7 @@ export function UploadClient() {
               ref={fileInputRef}
               id={fileInputId}
               type="file"
-              accept="image/*"
+              accept=".jpg,.jpeg,.png,.webp,.heic,.heif"
               capture="environment"
               onChange={handleInputChange}
               className="visually-hidden"
@@ -305,15 +435,17 @@ export function UploadClient() {
             </p>
           )}
 
-          {file && (
+          {(file || isCompressing) && (
             <button
               type="button"
               className="btn btn-primary btn-lg"
               onClick={handleOcr}
-              disabled={ocrLoading}
+              disabled={ocrLoading || isCompressing}
               style={{ inlineSize: "100%" }}
             >
-              {ocrLoading ? (
+              {isCompressing ? (
+                <><span className="spinner" aria-hidden="true" /> 画像を処理中...</>
+              ) : ocrLoading ? (
                 <><span className="spinner" aria-hidden="true" /> AIで解析中...</>
               ) : (
                 "🤖 AIで自動解析する"
@@ -505,6 +637,10 @@ export function UploadClient() {
               onClick={() => {
                 setStep("upload");
                 setFile(null);
+                // Reactの純粋性を守るため、更新関数の外側で明示的に解放
+                if (previewRef.current) {
+                  URL.revokeObjectURL(previewRef.current);
+                }
                 setPreview(null);
                 setOcrResult(null);
                 setFormData({});
