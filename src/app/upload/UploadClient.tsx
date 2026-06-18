@@ -29,6 +29,24 @@ interface OcrResult {
   rawText: string;
 }
 
+/**
+ * Windows 等で file.type が空になる場合に備え、
+ * ファイル名の拡張子から MIME タイプを補完する。
+ */
+function getEffectiveType(file: File): string {
+  if (file.type) return file.type;
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const extMap: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+    heic: "image/heic",
+    heif: "image/heif",
+  };
+  return extMap[ext] ?? "";
+}
+
 export function UploadClient() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("upload");
@@ -41,6 +59,7 @@ export function UploadClient() {
   const [formData, setFormData] = useState<Partial<NewBodyRecord>>({});
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
   const fileInputId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -80,7 +99,8 @@ export function UploadClient() {
 
     // エラー時は file/preview をクリアし、古い preview URL を明示的に破棄
     const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
-    if (!ALLOWED_TYPES.includes(selected.type)) {
+    const effectiveType = getEffectiveType(selected);
+    if (!ALLOWED_TYPES.includes(effectiveType)) {
       setError("対応していないファイル形式です（JPEG・PNG・WebP・HEICのみ）");
       setFile(null);
       revokeOldPreview();
@@ -95,6 +115,7 @@ export function UploadClient() {
       return;
     }
     setError(null);
+    setIsCompressing(true);
 
     try {
       // WebP（リサイズなし: 最大4096pxの安全制限あり、画質80%）に自動圧縮
@@ -107,6 +128,8 @@ export function UploadClient() {
       if (selectId !== activeSelectIdRef.current) {
         return;
       }
+
+      setIsCompressing(false);
 
       // 最終ファイルサイズの10MB検証 (サーバー側の10MB制限との整合)
       if (compressed.size > 10 * 1024 * 1024) {
@@ -124,10 +147,12 @@ export function UploadClient() {
       setPreview(newUrl);
     } catch (err) {
       console.error("画像圧縮に失敗したため、オリジナルファイルを使用します:", err);
-      
+
       if (selectId !== activeSelectIdRef.current) {
         return;
       }
+
+      setIsCompressing(false);
 
       // フォールバック時も、最終的な送信ファイルサイズが10MB以下かチェック
       if (selected.size > 10 * 1024 * 1024) {
@@ -402,10 +427,12 @@ export function UploadClient() {
               type="button"
               className="btn btn-primary btn-lg"
               onClick={handleOcr}
-              disabled={ocrLoading}
+              disabled={ocrLoading || isCompressing}
               style={{ inlineSize: "100%" }}
             >
-              {ocrLoading ? (
+              {isCompressing ? (
+                <><span className="spinner" aria-hidden="true" /> 画像を処理中...</>
+              ) : ocrLoading ? (
                 <><span className="spinner" aria-hidden="true" /> AIで解析中...</>
               ) : (
                 "🤖 AIで自動解析する"
