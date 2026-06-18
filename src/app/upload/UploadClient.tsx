@@ -117,9 +117,19 @@ export function UploadClient() {
     setError(null);
     setIsCompressing(true);
 
+    // file.type が空（Windows HEIC 等）の場合、compressImage とサーバーが正しく処理できるよう
+    // effectiveType で正規化した File オブジェクトを生成する
+    const fileToProcess =
+      effectiveType !== selected.type
+        ? new File([selected], selected.name, {
+            type: effectiveType,
+            lastModified: selected.lastModified,
+          })
+        : selected;
+
     try {
       // WebP（リサイズなし: 最大4096pxの安全制限あり、画質80%）に自動圧縮
-      const compressed = await compressImage(selected, {
+      const compressed = await compressImage(fileToProcess, {
         quality: 0.80,
         format: "image/webp",
       });
@@ -155,8 +165,9 @@ export function UploadClient() {
       setIsCompressing(false);
 
       // フォールバック時も、最終的な送信ファイルサイズが10MB以下かチェック
-      if (selected.size > 10 * 1024 * 1024) {
-        const isHeic = selected.type === "image/heic" || selected.type === "image/heif";
+      // isHeic 判定は正規化済みの effectiveType を使用する
+      if (fileToProcess.size > 10 * 1024 * 1024) {
+        const isHeic = effectiveType === "image/heic" || effectiveType === "image/heif";
         setError(
           isHeic
             ? "HEICファイルはお使いのブラウザでは圧縮できません。JPEGまたはPNGに変換してからアップロードしてください。"
@@ -168,10 +179,11 @@ export function UploadClient() {
         return;
       }
 
-      setFile(selected);
-      
-      const newUrl = URL.createObjectURL(selected);
-      revokeOldPreview(); // previewRef.current に基づく安全な破棄
+      // 正規化済み File をフォールバックとして使用（file.type が空のまま送信されるのを防ぐ）
+      setFile(fileToProcess);
+
+      const newUrl = URL.createObjectURL(fileToProcess);
+      revokeOldPreview();
       setPreview(newUrl);
     }
   }, [setError, setFile, setPreview]);
