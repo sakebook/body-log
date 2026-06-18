@@ -48,8 +48,10 @@ export function UploadClient() {
   const activeSelectIdRef = useRef<number>(0);
   const previewRef = useRef<string | null>(null);
 
-  // 最新の preview 状態を ref に同期
-  previewRef.current = preview;
+  // ESLint対策: レンダー中ではなく、useEffect を使用して安全に同期
+  useEffect(() => {
+    previewRef.current = preview;
+  }, [preview]);
 
   // --- Strict Mode 対策: コンポーネントが完全にアンマウントされた時のみ最終クリーンアップ ---
   useEffect(() => {
@@ -94,7 +96,7 @@ export function UploadClient() {
     setError(null);
 
     try {
-      // WebP（リサイズなし、画質80%）に自動圧縮
+      // WebP（リサイズなし: 最大4096pxの安全制限あり、画質80%）に自動圧縮
       const compressed = await compressImage(selected, {
         quality: 0.80,
         format: "image/webp",
@@ -589,10 +591,11 @@ export function UploadClient() {
               onClick={() => {
                 setStep("upload");
                 setFile(null);
-                setPreview((prev) => {
-                  if (prev) URL.revokeObjectURL(prev);
-                  return null;
-                });
+                // Reactの純粋性を守るため、更新関数の外側で明示的に解放
+                if (previewRef.current) {
+                  URL.revokeObjectURL(previewRef.current);
+                }
+                setPreview(null);
                 setOcrResult(null);
                 setFormData({});
               }}
