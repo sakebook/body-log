@@ -9,7 +9,8 @@ export interface CompressOptions {
  * クライアント側（ブラウザ）で画像を Canvas API を使用してリサイズ＆圧縮する
  */
 export function compressImage(file: File, options: CompressOptions = {}): Promise<File> {
-  const { maxWidth, maxHeight, quality = 0.8, format = "image/jpeg" } = options;
+  // デフォルト最大サイズを 4096px に制限し、Canvas描画によるメモリクラッシュを防止
+  const { maxWidth = 4096, maxHeight = 4096, quality = 0.8, format = "image/jpeg" } = options;
 
   return new Promise((resolve, reject) => {
     if (!file.type.startsWith("image/")) {
@@ -30,9 +31,13 @@ export function compressImage(file: File, options: CompressOptions = {}): Promis
       let width = img.width;
       let height = img.height;
 
-      if (maxWidth || maxHeight) {
-        const maxW = maxWidth ?? width;
-        const maxH = maxHeight ?? height;
+      // 安全な境界値チェック (0 などの無効な値を除外)
+      const hasMaxW = typeof maxWidth === "number" && maxWidth > 0;
+      const hasMaxH = typeof maxHeight === "number" && maxHeight > 0;
+
+      if (hasMaxW || hasMaxH) {
+        const maxW = hasMaxW ? maxWidth : width;
+        const maxH = hasMaxH ? maxHeight : height;
 
         const scale = Math.min(maxW / width, maxH / height, 1);
         width = Math.round(width * scale);

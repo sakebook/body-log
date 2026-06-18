@@ -69,23 +69,26 @@ export function UploadClient() {
     // 1. 先頭で即座に ID をインクリメントし、仕掛かり中の前処理を無効化
     const selectId = ++activeSelectIdRef.current;
 
-    // 2. エラー時は file/preview をクリアし、古い preview URL を明示的に破棄
+    // 2. previewRef を使って Object URL を安全に解放するヘルパー
+    const revokeOldPreview = () => {
+      if (previewRef.current) {
+        URL.revokeObjectURL(previewRef.current);
+      }
+    };
+
+    // エラー時は file/preview をクリアし、古い preview URL を明示的に破棄
     if (!selected.type.startsWith("image/")) {
       setError("画像ファイルを選択してください");
       setFile(null);
-      setPreview((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
+      revokeOldPreview();
+      setPreview(null);
       return;
     }
     if (selected.size > 20 * 1024 * 1024) {
       setError("ファイルサイズは20MB以下にしてください");
       setFile(null);
-      setPreview((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
+      revokeOldPreview();
+      setPreview(null);
       return;
     }
     setError(null);
@@ -106,20 +109,15 @@ export function UploadClient() {
       if (compressed.size > 10 * 1024 * 1024) {
         setError("圧縮後のファイルサイズが10MBを超えています。別の画像を選択してください。");
         setFile(null);
-        setPreview((prev) => {
-          if (prev) URL.revokeObjectURL(prev);
-          return null;
-        });
+        revokeOldPreview();
+        setPreview(null);
         return;
       }
 
       setFile(compressed);
       
-      // 3. 副作用を状態更新の「外側」で処理 (Strict Mode でのメモリリークを完全に防止)
       const newUrl = URL.createObjectURL(compressed);
-      if (preview) {
-        URL.revokeObjectURL(preview);
-      }
+      revokeOldPreview(); // previewRef.current に基づく安全な破棄
       setPreview(newUrl);
     } catch (err) {
       console.error("画像圧縮に失敗したため、オリジナルファイルを使用します:", err);
@@ -132,22 +130,18 @@ export function UploadClient() {
       if (selected.size > 10 * 1024 * 1024) {
         setError("画像圧縮に失敗しました。また、オリジナルのファイルサイズが10MBを超えているためアップロードできません。");
         setFile(null);
-        setPreview((prev) => {
-          if (prev) URL.revokeObjectURL(prev);
-          return null;
-        });
+        revokeOldPreview();
+        setPreview(null);
         return;
       }
 
       setFile(selected);
       
       const newUrl = URL.createObjectURL(selected);
-      if (preview) {
-        URL.revokeObjectURL(preview);
-      }
+      revokeOldPreview(); // previewRef.current に基づく安全な破棄
       setPreview(newUrl);
     }
-  }, [setError, setFile, setPreview, preview]);
+  }, [setError, setFile, setPreview]);
 
   async function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (e.target.files?.[0]) {
