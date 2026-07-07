@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useId, useEffect } from "react";
+import { useState, useId } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const router = useRouter();
@@ -15,21 +15,20 @@ export function LoginForm() {
   const emailId = useId();
   const passwordId = useId();
 
-  useEffect(() => {
-    const errorParam = searchParams.get("error");
-    if (errorParam) {
-      if (errorParam === "AccessDenied") {
-        setError("このGoogleアカウントでのログインは許可されていません");
-      } else {
-        setError("ログイン中にエラーが発生しました。もう一度お試しください。");
-      }
-    }
-  }, [searchParams]);
+  // URLのクエリパラメータにエラーがある場合はそちらを表示、なければフォームのエラーを表示
+  const errorParam = searchParams.get("error");
+  const displayError =
+    formError ||
+    (errorParam === "AccessDenied"
+      ? "このGoogleアカウントでのログインは許可されていません"
+      : errorParam
+      ? "ログイン中にエラーが発生しました。もう一度お試しください。"
+      : "");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setError("");
+    setFormError("");
 
     const result = await signIn("credentials", {
       email,
@@ -40,7 +39,7 @@ export function LoginForm() {
     setLoading(false);
 
     if (result?.error) {
-      setError("メールアドレスまたはパスワードが正しくありません");
+      setFormError("メールアドレスまたはパスワードが正しくありません");
     } else {
       router.push("/");
       router.refresh();
@@ -49,7 +48,7 @@ export function LoginForm() {
 
   async function handleGoogleLogin() {
     setGoogleLoading(true);
-    setError("");
+    setFormError("");
     await signIn("google", { callbackUrl: "/" });
   }
 
@@ -67,7 +66,7 @@ export function LoginForm() {
           required
           autoComplete="email"
           autoFocus
-          aria-describedby={error ? "login-error" : undefined}
+          aria-describedby={displayError ? "login-error" : undefined}
         />
       </div>
 
@@ -82,11 +81,11 @@ export function LoginForm() {
           placeholder="••••••••"
           required
           autoComplete="current-password"
-          aria-describedby={error ? "login-error" : undefined}
+          aria-describedby={displayError ? "login-error" : undefined}
         />
       </div>
 
-      {error && (
+      {displayError && (
         <p
           id="login-error"
           role="alert"
@@ -98,7 +97,7 @@ export function LoginForm() {
             borderRadius: "var(--radius-md)",
           }}
         >
-          {error}
+          {displayError}
         </p>
       )}
 
