@@ -29,6 +29,11 @@ function getSupabaseClient() {
 const providers: NextAuthOptions["providers"] = [];
 
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  if (!process.env.ALLOWED_EMAILS) {
+    console.warn(
+      "[Auth] Warning: GOOGLE_CLIENT_ID is configured, but ALLOWED_EMAILS is not set. All Google sign-in attempts will be denied."
+    );
+  }
   providers.push(
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
