@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { LoginForm } from "./LoginForm";
 import { SetupGuide } from "@/components/SetupGuide";
@@ -14,6 +15,10 @@ export default function LoginPage() {
     supabaseUrl.startsWith("https://") &&
     !supabaseUrl.includes("your-project") &&
     supabaseKey.length > 20;
+
+  const isGoogleConfigured = !!(
+    process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+  );
 
   if (!isSupabaseConfigured) {
     return (
@@ -94,7 +99,9 @@ export default function LoginPage() {
           >
             ログイン
           </h1>
-          <LoginForm />
+          <Suspense fallback={<div style={{ textAlign: "center", padding: "1rem" }}>読み込み中...</div>}>
+            <LoginForm isGoogleConfigured={isGoogleConfigured} />
+          </Suspense>
           <p
             style={{
               textAlign: "center",
@@ -112,3 +119,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
