@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { LoginForm } from "./LoginForm";
 import { SetupGuide } from "@/components/SetupGuide";
@@ -94,7 +95,9 @@ export default function LoginPage() {
           >
             ログイン
           </h1>
-          <LoginForm />
+          <Suspense fallback={<div style={{ textAlign: "center", padding: "1rem" }}>読み込み中...</div>}>
+            <LoginForm />
+          </Suspense>
           <p
             style={{
               textAlign: "center",
@@ -112,3 +115,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
