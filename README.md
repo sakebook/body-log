@@ -174,7 +174,7 @@ npm run dev
 | `NEXTAUTH_URL` | — | アプリの URL（Vercel では自動設定、ローカルでは不要） |
 | `GOOGLE_CLIENT_ID` | — | Google OAuth クライアント ID (Googleログインを使用する場合) |
 | `GOOGLE_CLIENT_SECRET` | — | Google OAuth クライアント シークレット (Googleログインを使用する場合) |
-| `ALLOWED_EMAILS` | — | Googleログインを許可するメールアドレス（複数ある場合はカンマ区切り） |
+| `ALLOWED_EMAILS` | ⚠️ | Googleログインを許可するメールアドレス。**Googleログインを使用する場合は必須**（設定しないとすべてのGoogleログインが拒否されます）。複数ある場合はカンマ区切り |
 
 ## 🔧 対応ブランド
 
