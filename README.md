@@ -100,11 +100,22 @@ supabase/
 
 > ⚠️ Legacy タブの `service_role` ではなく、新しい「Secret」キーを使用してください。
 
-### 2. Gemini API キー取得
+### 2. Google OAuth の設定 (Googleログインを利用する場合)
+
+パスワードレスな Google ログインを使用する場合は、以下の設定を行います。
+
+1. [Google Cloud Console](https://console.cloud.google.com/) でプロジェクトを作成し、**OAuth 同意画面** を設定します。
+2. **「認証情報」 > 「認証情報を作成」 > 「OAuth クライアント ID」**（アプリケーションの種類: ウェブ アプリケーション）を作成します。
+3. 承認されたリダイレクト URI に以下を設定します。
+   - ローカル開発: `http://localhost:3000/api/auth/callback/google`
+   - 本番環境: `https://<あなたの本番ドメイン>/api/auth/callback/google`
+4. 発行されたクライアント ID とクライアント シークレットを控えます。
+
+### 3. Gemini API キー取得
 
 1. [Google AI Studio](https://aistudio.google.com) で API キーを作成
 
-### 3. ローカル開発
+### 4. ローカル開発
 
 ```bash
 # クローン
@@ -130,6 +141,11 @@ GEMINI_API_KEY=AIza...
 
 # 認証
 NEXTAUTH_SECRET=your-random-secret   # openssl rand -base64 32 で生成
+
+# Google OAuth (Google ログインを利用する場合のみ)
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+ALLOWED_EMAILS=your-email@gmail.com   # ログインを許可するGoogleメールアドレス
 ```
 
 ```bash
@@ -137,9 +153,9 @@ NEXTAUTH_SECRET=your-random-secret   # openssl rand -base64 32 で生成
 npm run dev
 ```
 
-ブラウザで [http://localhost:3000](http://localhost:3000) を開き、Supabase のダッシュボードで作成した管理者のメールアドレスとパスワードでログインします。
+ブラウザで [http://localhost:3000](http://localhost:3000) を開き、設定したGoogleアカウントまたは Supabase のダッシュボードで作成した管理者のメールアドレスとパスワードでログインします。
 
-### 4. Vercel デプロイ
+### 5. Vercel デプロイ
 
 1. [vercel.com/new](https://vercel.com/new) でこのリポジトリをインポート
 2. **Environment Variables** に上記の環境変数を設定（`NEXTAUTH_URL` は不要、Vercel が自動検出）
@@ -156,6 +172,9 @@ npm run dev
 | `GEMINI_API_KEY` | ✅ | Google AI Studio の API キー |
 | `NEXTAUTH_SECRET` | ✅ | JWT 署名用シークレット（`openssl rand -base64 32` で生成） |
 | `NEXTAUTH_URL` | — | アプリの URL（Vercel では自動設定、ローカルでは不要） |
+| `GOOGLE_CLIENT_ID` | — | Google OAuth クライアント ID (Googleログインを使用する場合) |
+| `GOOGLE_CLIENT_SECRET` | — | Google OAuth クライアント シークレット (Googleログインを使用する場合) |
+| `ALLOWED_EMAILS` | — | Googleログインを許可するメールアドレス（複数ある場合はカンマ区切り） |
 
 ## 🔧 対応ブランド
 
@@ -189,7 +208,7 @@ npm run dev
 
 ## 📝 既知の制限事項
 
-- **認証**: Supabase Auth による管理者のメール・パスワード認証を採用（ブルートフォースや不正アクセスを防ぐ強固な仕組みを標準で備えています）
+- **認証**: Supabase Auth による管理者のメール・パスワード認証、および Google ログインによるパスワードレス認証（ハイブリッド方式）に対応しています。Googleログインは環境変数 `ALLOWED_EMAILS` で許可されたメールアドレスのみサインイン可能です。
 - **マルチユーザー非対応**: 個人利用（シングルユーザー）を想定しているため、Supabase Auth 側で複数のユーザーを作成した場合でも、データ（レコードや画像）はユーザーごとに分離されず、共有される仕様となっています。
 - **OCR 精度**: レシートの印刷品質や撮影角度により読み取り精度が変わる場合があります。確認画面で手動修正が可能です
 - **タイムゾーン**: OCR で読み取った時刻は日本時間（JST）として処理されます
