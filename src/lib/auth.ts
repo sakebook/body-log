@@ -26,48 +26,57 @@ function getSupabaseClient() {
   return supabaseClient;
 }
 
-export const authOptions: NextAuthOptions = {
-  providers: [
+const providers: NextAuthOptions["providers"] = [];
+
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  providers.push(
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
-    }),
-    CredentialsProvider({
-      name: "Password",
-      credentials: {
-        email: { label: "メールアドレス", type: "email" },
-        password: { label: "パスワード", type: "password" },
-      },
-      async authorize(credentials) {
-        const email = credentials?.email;
-        const password = credentials?.password;
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    })
+  );
+}
 
-        if (!email || !password) {
-          return null;
-        }
+providers.push(
+  CredentialsProvider({
+    name: "Password",
+    credentials: {
+      email: { label: "メールアドレス", type: "email" },
+      password: { label: "パスワード", type: "password" },
+    },
+    async authorize(credentials) {
+      const email = credentials?.email;
+      const password = credentials?.password;
 
-        const supabase = getSupabaseClient();
+      if (!email || !password) {
+        return null;
+      }
 
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+      const supabase = getSupabaseClient();
 
-        if (error || !data.user) {
-          return null;
-        }
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-        // Supabaseサーバー側に作成された不要なセッションレコードを即座に破棄
-        await supabase.auth.signOut();
+      if (error || !data.user) {
+        return null;
+      }
 
-        return {
-          id: data.user.id,
-          name: "Owner",
-          email: data.user.email,
-        };
-      },
-    }),
-  ],
+      // Supabaseサーバー側に作成された不要なセッションレコードを即座に破棄
+      await supabase.auth.signOut();
+
+      return {
+        id: data.user.id,
+        name: "Owner",
+        email: data.user.email,
+      };
+    },
+  })
+);
+
+export const authOptions: NextAuthOptions = {
+  providers,
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30日
