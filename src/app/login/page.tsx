@@ -16,6 +16,10 @@ export default function LoginPage() {
     !supabaseUrl.includes("your-project") &&
     supabaseKey.length > 20;
 
+  const isGoogleConfigured = !!(
+    process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+  );
+
   if (!isSupabaseConfigured) {
     return (
       <div
@@ -96,7 +100,7 @@ export default function LoginPage() {
             ログイン
           </h1>
           <Suspense fallback={<div style={{ textAlign: "center", padding: "1rem" }}>読み込み中...</div>}>
-            <LoginForm />
+            <LoginForm isGoogleConfigured={isGoogleConfigured} />
           </Suspense>
           <p
             style={{
